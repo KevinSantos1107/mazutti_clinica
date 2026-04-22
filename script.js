@@ -23,7 +23,6 @@ document.addEventListener('DOMContentLoaded', () => {
     menuToggle.addEventListener('click', () => {
       const isOpen = nav.classList.toggle('open');
       menuToggle.setAttribute('aria-expanded', isOpen);
-      // Anima as barras do hamburguer
       const spans = menuToggle.querySelectorAll('span');
       if (isOpen) {
         spans[0].style.transform = 'translateY(7px) rotate(45deg)';
@@ -36,7 +35,6 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     });
 
-    // Fechar menu ao clicar em link
     nav.querySelectorAll('a').forEach(link => {
       link.addEventListener('click', () => {
         nav.classList.remove('open');
@@ -45,7 +43,6 @@ document.addEventListener('DOMContentLoaded', () => {
       });
     });
 
-    // Fechar menu ao clicar fora
     document.addEventListener('click', (e) => {
       if (!header.contains(e.target)) {
         nav.classList.remove('open');
@@ -84,7 +81,6 @@ document.addEventListener('DOMContentLoaded', () => {
     question.addEventListener('click', () => {
       const isOpen = question.getAttribute('aria-expanded') === 'true';
 
-      // Fecha todos os outros
       faqItems.forEach(other => {
         if (other !== item) {
           other.querySelector('.faq-question').setAttribute('aria-expanded', 'false');
@@ -92,7 +88,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
       });
 
-      // Toggle atual
       if (isOpen) {
         question.setAttribute('aria-expanded', 'false');
         answer.classList.remove('open');
@@ -111,7 +106,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const target = document.querySelector(href);
       if (target) {
         e.preventDefault();
-        const offset = 80; // altura do header fixo
+        const offset = 80;
         const top = target.getBoundingClientRect().top + window.scrollY - offset;
         window.scrollTo({ top, behavior: 'smooth' });
       }
@@ -127,7 +122,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const update = (now) => {
       const elapsed = now - start;
       const progress = Math.min(elapsed / duration, 1);
-      // Easing: ease-out cubic
       const eased = 1 - Math.pow(1 - progress, 3);
       const current = isDecimal
         ? (eased * target).toFixed(1)
@@ -142,7 +136,6 @@ document.addEventListener('DOMContentLoaded', () => {
     requestAnimationFrame(update);
   };
 
-  // Inicia contador quando visível
   const counterObserver = new IntersectionObserver((entries) => {
     entries.forEach(entry => {
       if (entry.isIntersecting) {
@@ -192,8 +185,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   applyStagger('.specialty-card');
   applyStagger('.problem-card', 100);
-  applyStagger('.solution-card', 80);
-  applyStagger('.diff-card', 80);
+  applyStagger('.why-card', 70);
   applyStagger('.testimonial-card', 100);
 
   /* ---------- 9. ACTIVE LINK NO SCROLL ---------- */
@@ -245,7 +237,6 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   });
 
-  // Adiciona keyframe de ripple
   if (!document.getElementById('ripple-style')) {
     const style = document.createElement('style');
     style.id = 'ripple-style';
@@ -311,13 +302,50 @@ document.addEventListener('DOMContentLoaded', () => {
         const src = mapIframe.getAttribute('src');
         if (!mapIframe.getAttribute('data-loaded')) {
           mapIframe.setAttribute('data-loaded', 'true');
-          // O iframe já tem o src definido; apenas força o carregamento
           mapIframe.src = src;
         }
         mapObserver.disconnect();
       }
     }, { threshold: 0.1 });
     mapObserver.observe(mapIframe);
+  }
+
+  /* ---------- 13. TOGGLE ESPECIALIDADES ---------- */
+  const specialtiesExtra = document.getElementById('specialties-extra');
+  const specialtiesToggleBtn = document.getElementById('specialties-toggle');
+
+  if (specialtiesExtra && specialtiesToggleBtn) {
+    specialtiesToggleBtn.addEventListener('click', () => {
+      const isOpen = specialtiesExtra.classList.toggle('open');
+
+      if (isOpen) {
+        specialtiesToggleBtn.innerHTML = `
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"></polyline></svg>
+          Ver menos especialidades
+        `;
+        // anima os cards recém-visíveis
+        specialtiesExtra.querySelectorAll('.specialty-card').forEach((el, i) => {
+          el.style.opacity = '0';
+          el.style.transform = 'translateY(24px)';
+          setTimeout(() => {
+            el.style.transition = 'opacity .4s ease, transform .4s ease';
+            el.style.opacity = '1';
+            el.style.transform = 'translateY(0)';
+          }, i * 60);
+        });
+      } else {
+        specialtiesToggleBtn.innerHTML = `
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+          Ver todas as especialidades (+12)
+        `;
+        // rola de volta ao topo da seção
+        const section = document.getElementById('especialidades');
+        if (section) {
+          const top = section.getBoundingClientRect().top + window.scrollY - 90;
+          window.scrollTo({ top, behavior: 'smooth' });
+        }
+      }
+    });
   }
 
   console.log('✅ Mazutti Clínica Médica — scripts carregados com sucesso!');
