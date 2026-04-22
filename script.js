@@ -4,20 +4,139 @@
 
 document.addEventListener('DOMContentLoaded', () => {
 
+  /* ============================================================
+     GA4 — HELPER
+     Chama gtag com segurança — não quebra se ad-blocker ativo
+  ============================================================ */
+  function gaEvent(eventName, params = {}) {
+    try {
+      if (typeof gtag === 'function') gtag('event', eventName, params);
+    } catch (_) { /* silencia bloqueadores */ }
+  }
+
+  /* ============================================================
+     GA4 — SCROLL DEPTH  (marcos: 25 / 50 / 75 / 90 %)
+     Dispara uma única vez por marco por carregamento de página
+  ============================================================ */
+  const DEPTH_MILESTONES = [25, 50, 75, 90];
+  const firedMilestones  = new Set();
+
+  window.addEventListener('scroll', () => {
+    const pct = Math.round(
+      ((window.scrollY + window.innerHeight) / document.documentElement.scrollHeight) * 100
+    );
+    DEPTH_MILESTONES.forEach(m => {
+      if (pct >= m && !firedMilestones.has(m)) {
+        firedMilestones.add(m);
+        gaEvent('scroll_depth', {
+          event_category:  'engajamento',
+          percent_scrolled: m,
+          non_interaction:  true
+        });
+      }
+    });
+  }, { passive: true });
+
+  /* ============================================================
+     GA4 — VISUALIZAÇÃO DE SEÇÕES (dispara uma vez por seção)
+  ============================================================ */
+  const SECTION_NAMES = {
+    hero:           'Hero',
+    problemas:      'Problemas',
+    diferenciais:   'Por que a Mazutti',
+    especialidades: 'Especialidades',
+    social:         'Prova Social',
+    faq:            'FAQ',
+    localizacao:    'Localização'
+  };
+
+  const sectionViewObs = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        const id = entry.target.id;
+        gaEvent('section_view', {
+          event_category: 'navegacao',
+          section_id:     id,
+          section_name:   SECTION_NAMES[id] || id
+        });
+        sectionViewObs.unobserve(entry.target);
+      }
+    });
+  }, { threshold: 0.3 });
+
+  document.querySelectorAll('section[id]').forEach(s => sectionViewObs.observe(s));
+
+  /* ============================================================
+     GA4 — CLIQUES NO WHATSAPP
+     Cada link no HTML tem data-ga-section indicando o contexto
+     exato de conversão (hero, faq, cta_final etc.)
+  ============================================================ */
+  document.querySelectorAll('a[href*="wa.me"]').forEach(link => {
+    link.addEventListener('click', () => {
+      gaEvent('whatsapp_click', {
+        event_category: 'conversao',
+        section:        link.dataset.gaSection || 'desconhecido',
+        cta_label:      link.textContent.trim().replace(/\s+/g, ' ').slice(0, 80)
+      });
+      showToast('Redirecionando para o WhatsApp... 📱');
+    });
+  });
+
+  /* ============================================================
+     GA4 — CLIQUES EM LINKS EXTERNOS MARCADOS
+     (Google Maps, Instagram, Google Reviews — via data-ga-action)
+  ============================================================ */
+  document.querySelectorAll('a[data-ga-action]').forEach(link => {
+    link.addEventListener('click', () => {
+      gaEvent('outbound_click', {
+        event_category: 'externo',
+        action:         link.dataset.gaAction,
+        label:          link.dataset.gaLabel || link.href
+      });
+    });
+  });
+
+  /* ============================================================
+     GA4 — CLIQUE EM TELEFONE (tel:)
+  ============================================================ */
+  document.querySelectorAll('a[href^="tel:"]').forEach(link => {
+    link.addEventListener('click', () => {
+      gaEvent('phone_click', {
+        event_category: 'conversao',
+        phone_number:   link.getAttribute('href').replace('tel:', '')
+      });
+    });
+  });
+
+  /* ============================================================
+     GA4 — NAVEGAÇÃO PELOS LINKS DO MENU
+  ============================================================ */
+  document.querySelectorAll('.nav a[href^="#"]').forEach(link => {
+    link.addEventListener('click', () => {
+      gaEvent('nav_click', {
+        event_category: 'navegacao',
+        destination:    link.getAttribute('href').replace('#', '')
+      });
+    });
+  });
+
   /* ---------- 1. HEADER SCROLL ---------- */
   const header = document.getElementById('header');
-  const handleScroll = () => {
-    if (window.scrollY > 60) {
-      header.classList.add('scrolled');
-    } else {
-      header.classList.remove('scrolled');
-    }
-  };
-  window.addEventListener('scroll', handleScroll, { passive: true });
+  window.addEventListener('scroll', () => {
+    header.classList.toggle('scrolled', window.scrollY > 60);
+  }, { passive: true });
 
   /* ---------- 2. MENU MOBILE ---------- */
   const menuToggle = document.getElementById('menuToggle');
-  const nav = document.getElementById('nav');
+  const nav        = document.getElementById('nav');
+
+  const closeMenu = () => {
+    nav.classList.remove('open');
+    menuToggle.querySelectorAll('span').forEach(s => {
+      s.style.transform = '';
+      s.style.opacity   = '';
+    });
+  };
 
   if (menuToggle && nav) {
     menuToggle.addEventListener('click', () => {
@@ -26,56 +145,35 @@ document.addEventListener('DOMContentLoaded', () => {
       const spans = menuToggle.querySelectorAll('span');
       if (isOpen) {
         spans[0].style.transform = 'translateY(7px) rotate(45deg)';
-        spans[1].style.opacity = '0';
+        spans[1].style.opacity   = '0';
         spans[2].style.transform = 'translateY(-7px) rotate(-45deg)';
+        gaEvent('menu_mobile_open', { event_category: 'navegacao' });
       } else {
-        spans[0].style.transform = '';
-        spans[1].style.opacity = '';
-        spans[2].style.transform = '';
+        closeMenu();
       }
     });
-
-    nav.querySelectorAll('a').forEach(link => {
-      link.addEventListener('click', () => {
-        nav.classList.remove('open');
-        const spans = menuToggle.querySelectorAll('span');
-        spans.forEach(s => { s.style.transform = ''; s.style.opacity = ''; });
-      });
-    });
-
-    document.addEventListener('click', (e) => {
-      if (!header.contains(e.target)) {
-        nav.classList.remove('open');
-        const spans = menuToggle.querySelectorAll('span');
-        spans.forEach(s => { s.style.transform = ''; s.style.opacity = ''; });
-      }
-    });
+    nav.querySelectorAll('a').forEach(link => link.addEventListener('click', closeMenu));
+    document.addEventListener('click', e => { if (!header.contains(e.target)) closeMenu(); });
   }
 
   /* ---------- 3. FADE-IN AO ROLAR ---------- */
-  const fadeEls = document.querySelectorAll('.fade-in');
-
-  const observer = new IntersectionObserver((entries) => {
+  const fadeObs = new IntersectionObserver((entries) => {
     entries.forEach(entry => {
       if (entry.isIntersecting) {
         entry.target.classList.add('visible');
-        observer.unobserve(entry.target);
+        fadeObs.unobserve(entry.target);
       }
     });
-  }, {
-    threshold: 0.12,
-    rootMargin: '0px 0px -40px 0px'
-  });
+  }, { threshold: 0.12, rootMargin: '0px 0px -40px 0px' });
 
-  fadeEls.forEach(el => observer.observe(el));
+  document.querySelectorAll('.fade-in').forEach(el => fadeObs.observe(el));
 
-  /* ---------- 4. FAQ ACCORDION ---------- */
+  /* ---------- 4. FAQ ACCORDION + GA4 ---------- */
   const faqItems = document.querySelectorAll('.faq-item');
 
-  faqItems.forEach(item => {
+  faqItems.forEach((item, index) => {
     const question = item.querySelector('.faq-question');
-    const answer = item.querySelector('.faq-answer');
-
+    const answer   = item.querySelector('.faq-answer');
     if (!question || !answer) return;
 
     question.addEventListener('click', () => {
@@ -94,6 +192,13 @@ document.addEventListener('DOMContentLoaded', () => {
       } else {
         question.setAttribute('aria-expanded', 'true');
         answer.classList.add('open');
+
+        // GA4: qual pergunta foi aberta e em qual posição
+        gaEvent('faq_open', {
+          event_category: 'engajamento',
+          question_index: index + 1,
+          question_text:  question.querySelector('span')?.textContent?.trim() || `Pergunta ${index + 1}`
+        });
       }
     });
   });
@@ -101,194 +206,141 @@ document.addEventListener('DOMContentLoaded', () => {
   /* ---------- 5. SMOOTH SCROLL ---------- */
   document.querySelectorAll('a[href^="#"]').forEach(anchor => {
     anchor.addEventListener('click', function (e) {
-      const href = this.getAttribute('href');
+      const href   = this.getAttribute('href');
       if (href === '#') return;
       const target = document.querySelector(href);
       if (target) {
         e.preventDefault();
-        const offset = 80;
-        const top = target.getBoundingClientRect().top + window.scrollY - offset;
-        window.scrollTo({ top, behavior: 'smooth' });
+        window.scrollTo({
+          top: target.getBoundingClientRect().top + window.scrollY - 80,
+          behavior: 'smooth'
+        });
       }
     });
   });
 
   /* ---------- 6. CONTADOR ANIMADO ---------- */
-  const animateCounter = (el, target, suffix = '') => {
-    const duration = 1800;
-    const start = performance.now();
+  const animateCounter = (el, target) => {
+    const start     = performance.now();
     const isDecimal = String(target).includes('.');
-
-    const update = (now) => {
-      const elapsed = now - start;
-      const progress = Math.min(elapsed / duration, 1);
-      const eased = 1 - Math.pow(1 - progress, 3);
+    const tick = (now) => {
+      const eased   = 1 - Math.pow(1 - Math.min((now - start) / 1800, 1), 3);
       const current = isDecimal
         ? (eased * target).toFixed(1)
         : Math.round(eased * target).toLocaleString('pt-BR');
-
-      el.textContent = (target >= 1000 ? '+' : '') + current + suffix;
-
-      if (progress < 1) requestAnimationFrame(update);
-      else el.textContent = (target >= 1000 ? '+' : '') + (isDecimal ? target.toFixed(1) : target.toLocaleString('pt-BR')) + suffix;
+      el.textContent = (target >= 1000 ? '+' : '') + current;
+      if (eased < 1) requestAnimationFrame(tick);
+      else el.textContent = (target >= 1000 ? '+' : '') +
+        (isDecimal ? target.toFixed(1) : target.toLocaleString('pt-BR'));
     };
-
-    requestAnimationFrame(update);
+    requestAnimationFrame(tick);
   };
 
-  const counterObserver = new IntersectionObserver((entries) => {
+  const counterObs = new IntersectionObserver((entries) => {
     entries.forEach(entry => {
       if (entry.isIntersecting) {
-        const el = entry.target;
-        const text = el.textContent.trim();
-
-        if (text === '+5.000' || text.includes('5.000')) {
-          animateCounter(el, 5000);
-        } else if (text === '+20') {
-          animateCounter(el, 20);
-        } else if (text === '5.0') {
-          animateCounter(el, 5.0);
-        }
-
-        counterObserver.unobserve(el);
+        const text = entry.target.textContent.trim();
+        if (text.includes('5.000')) animateCounter(entry.target, 5000);
+        else if (text === '+20')   animateCounter(entry.target, 20);
+        else if (text === '5.0')   animateCounter(entry.target, 5.0);
+        counterObs.unobserve(entry.target);
       }
     });
   }, { threshold: 0.5 });
 
-  document.querySelectorAll('.stat-big').forEach(el => counterObserver.observe(el));
+  document.querySelectorAll('.stat-big').forEach(el => counterObs.observe(el));
 
-  /* ---------- 7. WHATSAPP FLOAT — esconder no topo ---------- */
+  /* ---------- 7. WHATSAPP FLOAT — visibilidade ---------- */
   const waFloat = document.querySelector('.whatsapp-float');
   if (waFloat) {
-    const toggleWa = () => {
-      if (window.scrollY > 300) {
-        waFloat.style.opacity = '1';
-        waFloat.style.pointerEvents = 'auto';
-      } else {
-        waFloat.style.opacity = '0';
-        waFloat.style.pointerEvents = 'none';
-      }
-    };
-    waFloat.style.transition = 'opacity .4s ease, transform .3s ease, box-shadow .3s ease';
-    waFloat.style.opacity = '0';
+    waFloat.style.transition   = 'opacity .4s ease, transform .3s ease, box-shadow .3s ease';
+    waFloat.style.opacity      = '0';
     waFloat.style.pointerEvents = 'none';
+    const toggleWa = () => {
+      const show = window.scrollY > 300;
+      waFloat.style.opacity      = show ? '1' : '0';
+      waFloat.style.pointerEvents = show ? 'auto' : 'none';
+    };
     window.addEventListener('scroll', toggleWa, { passive: true });
     toggleWa();
   }
 
   /* ---------- 8. STAGGER DELAY NOS CARDS ---------- */
-  const applyStagger = (selector, delayStep = 80) => {
-    document.querySelectorAll(selector).forEach((el, i) => {
-      el.style.transitionDelay = `${i * delayStep}ms`;
+  const applyStagger = (sel, step = 80) =>
+    document.querySelectorAll(sel).forEach((el, i) => {
+      el.style.transitionDelay = `${i * step}ms`;
     });
-  };
 
   applyStagger('.specialty-card');
-  applyStagger('.problem-card', 100);
-  applyStagger('.why-card', 70);
+  applyStagger('.problem-card',    100);
+  applyStagger('.why-card',         70);
   applyStagger('.testimonial-card', 100);
 
   /* ---------- 9. ACTIVE LINK NO SCROLL ---------- */
-  const sections = document.querySelectorAll('section[id]');
-  const navLinks = document.querySelectorAll('.nav a[href^="#"]');
-
-  const activeLinkObserver = new IntersectionObserver((entries) => {
+  const navLinks    = document.querySelectorAll('.nav a[href^="#"]');
+  const activeObs   = new IntersectionObserver((entries) => {
     entries.forEach(entry => {
       if (entry.isIntersecting) {
         navLinks.forEach(link => {
-          link.style.color = '';
-          if (link.getAttribute('href') === '#' + entry.target.id) {
-            link.style.color = 'var(--blue)';
-          }
+          link.style.color = link.getAttribute('href') === '#' + entry.target.id
+            ? 'var(--blue)' : '';
         });
       }
     });
   }, { threshold: 0.4 });
-
-  sections.forEach(s => activeLinkObserver.observe(s));
+  document.querySelectorAll('section[id]').forEach(s => activeObs.observe(s));
 
   /* ---------- 10. RIPPLE NOS BOTÕES ---------- */
   document.querySelectorAll('.btn').forEach(btn => {
-    btn.addEventListener('click', function (e) {
-      const rect = btn.getBoundingClientRect();
+    btn.addEventListener('click', e => {
+      const rect   = btn.getBoundingClientRect();
+      const size   = Math.max(rect.width, rect.height);
       const ripple = document.createElement('span');
-      const size = Math.max(rect.width, rect.height);
-      const x = e.clientX - rect.left - size / 2;
-      const y = e.clientY - rect.top - size / 2;
-
       ripple.style.cssText = `
-        position: absolute;
-        width: ${size}px;
-        height: ${size}px;
-        left: ${x}px;
-        top: ${y}px;
-        background: rgba(255,255,255,0.3);
-        border-radius: 50%;
-        transform: scale(0);
-        animation: rippleAnim 0.5s linear;
-        pointer-events: none;
+        position:absolute; border-radius:50%; pointer-events:none;
+        width:${size}px; height:${size}px;
+        left:${e.clientX - rect.left - size / 2}px;
+        top:${e.clientY - rect.top - size / 2}px;
+        background:rgba(255,255,255,.3);
+        transform:scale(0); animation:rippleAnim .5s linear;
       `;
-
       btn.style.position = 'relative';
       btn.style.overflow = 'hidden';
       btn.appendChild(ripple);
-
       ripple.addEventListener('animationend', () => ripple.remove());
     });
   });
 
   if (!document.getElementById('ripple-style')) {
-    const style = document.createElement('style');
-    style.id = 'ripple-style';
-    style.textContent = `
-      @keyframes rippleAnim {
-        to { transform: scale(2.5); opacity: 0; }
-      }
-    `;
-    document.head.appendChild(style);
+    const s = document.createElement('style');
+    s.id = 'ripple-style';
+    s.textContent = '@keyframes rippleAnim{to{transform:scale(2.5);opacity:0;}}';
+    document.head.appendChild(s);
   }
 
-  /* ---------- 11. TOAST DE CONFIRMAÇÃO AO CLICAR NO CTA ---------- */
-  const ctaLinks = document.querySelectorAll('a[href*="wa.me"]');
-  ctaLinks.forEach(link => {
-    link.addEventListener('click', () => {
-      showToast('Redirecionando para o WhatsApp... 📱');
-    });
-  });
-
+  /* ---------- 11. TOAST ---------- */
   function showToast(msg) {
-    const existing = document.querySelector('.mazutti-toast');
-    if (existing) existing.remove();
-
+    document.querySelector('.mazutti-toast')?.remove();
     const toast = document.createElement('div');
-    toast.className = 'mazutti-toast';
+    toast.className   = 'mazutti-toast';
     toast.textContent = msg;
     toast.style.cssText = `
-      position: fixed;
-      bottom: 100px;
-      right: 28px;
-      background: var(--title, #0F172A);
-      color: #fff;
-      font-family: 'Plus Jakarta Sans', sans-serif;
-      font-weight: 600;
-      font-size: .88rem;
-      padding: 12px 20px;
-      border-radius: 100px;
-      box-shadow: 0 4px 20px rgba(0,0,0,.2);
-      z-index: 9999;
-      opacity: 0;
-      transform: translateY(10px);
-      transition: opacity .3s ease, transform .3s ease;
+      position:fixed; bottom:100px; right:28px;
+      background:var(--title,#0F172A); color:#fff;
+      font-family:'Plus Jakarta Sans',sans-serif;
+      font-weight:600; font-size:.88rem;
+      padding:12px 20px; border-radius:100px;
+      box-shadow:0 4px 20px rgba(0,0,0,.2);
+      z-index:9999; opacity:0; transform:translateY(10px);
+      transition:opacity .3s ease,transform .3s ease;
     `;
     document.body.appendChild(toast);
-
     requestAnimationFrame(() => {
-      toast.style.opacity = '1';
+      toast.style.opacity   = '1';
       toast.style.transform = 'translateY(0)';
     });
-
     setTimeout(() => {
-      toast.style.opacity = '0';
+      toast.style.opacity   = '0';
       toast.style.transform = 'translateY(10px)';
       setTimeout(() => toast.remove(), 300);
     }, 2800);
@@ -297,21 +349,18 @@ document.addEventListener('DOMContentLoaded', () => {
   /* ---------- 12. LAZY LOAD DO MAPA ---------- */
   const mapIframe = document.querySelector('.location-map iframe');
   if (mapIframe) {
-    const mapObserver = new IntersectionObserver((entries) => {
-      if (entries[0].isIntersecting) {
-        const src = mapIframe.getAttribute('src');
-        if (!mapIframe.getAttribute('data-loaded')) {
-          mapIframe.setAttribute('data-loaded', 'true');
-          mapIframe.src = src;
-        }
-        mapObserver.disconnect();
+    const mapObs = new IntersectionObserver((entries) => {
+      if (entries[0].isIntersecting && !mapIframe.dataset.loaded) {
+        mapIframe.dataset.loaded = 'true';
+        mapIframe.src = mapIframe.getAttribute('src');
+        mapObs.disconnect();
       }
     }, { threshold: 0.1 });
-    mapObserver.observe(mapIframe);
+    mapObs.observe(mapIframe);
   }
 
-  /* ---------- 13. TOGGLE ESPECIALIDADES ---------- */
-  const specialtiesExtra = document.getElementById('specialties-extra');
+  /* ---------- 13. TOGGLE ESPECIALIDADES + GA4 ---------- */
+  const specialtiesExtra     = document.getElementById('specialties-extra');
   const specialtiesToggleBtn = document.getElementById('specialties-toggle');
 
   if (specialtiesExtra && specialtiesToggleBtn) {
@@ -323,30 +372,28 @@ document.addEventListener('DOMContentLoaded', () => {
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"></polyline></svg>
           Ver menos especialidades
         `;
-        // anima os cards recém-visíveis
         specialtiesExtra.querySelectorAll('.specialty-card').forEach((el, i) => {
           el.style.opacity = '0';
           el.style.transform = 'translateY(24px)';
           setTimeout(() => {
             el.style.transition = 'opacity .4s ease, transform .4s ease';
-            el.style.opacity = '1';
-            el.style.transform = 'translateY(0)';
+            el.style.opacity    = '1';
+            el.style.transform  = 'translateY(0)';
           }, i * 60);
         });
+        gaEvent('specialty_expand', { event_category: 'engajamento', action: 'expandir' });
+
       } else {
         specialtiesToggleBtn.innerHTML = `
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
           Ver todas as especialidades (+12)
         `;
-        // rola de volta ao topo da seção
-        const section = document.getElementById('especialidades');
-        if (section) {
-          const top = section.getBoundingClientRect().top + window.scrollY - 90;
-          window.scrollTo({ top, behavior: 'smooth' });
-        }
+        const sec = document.getElementById('especialidades');
+        if (sec) window.scrollTo({ top: sec.getBoundingClientRect().top + window.scrollY - 90, behavior: 'smooth' });
+        gaEvent('specialty_expand', { event_category: 'engajamento', action: 'recolher' });
       }
     });
   }
 
-  console.log('✅ Mazutti Clínica Médica — scripts carregados com sucesso!');
+  console.log('✅ Mazutti Clínica Médica — scripts + GA4 carregados com sucesso!');
 });
