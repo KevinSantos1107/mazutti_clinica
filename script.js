@@ -193,7 +193,6 @@ document.addEventListener('DOMContentLoaded', () => {
         question.setAttribute('aria-expanded', 'true');
         answer.classList.add('open');
 
-        // GA4: qual pergunta foi aberta e em qual posição
         gaEvent('faq_open', {
           event_category: 'engajamento',
           question_index: index + 1,
@@ -395,5 +394,111 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  console.log('✅ Mazutti Clínica Médica — scripts + GA4 carregados com sucesso!');
+  /* ============================================================
+     14. WHATSAPP — BOTÃO INDIVIDUAL POR ESPECIALIDADE
+     Mensagem personalizada para cada especialidade.
+     Injetado via JS para não poluir o HTML.
+  ============================================================ */
+  const WA_NUMBER = '5531995825395';
+
+  // Mapa: nome exato do h3 → mensagem personalizada
+  const SPECIALTY_MESSAGES = {
+    'Cardiologista':
+      'Olá! Vim pelo site da Mazutti e gostaria de agendar uma consulta com o Cardiologista. Estou com dúvidas sobre minha saúde cardiovascular e preciso de avaliação. Podem verificar a disponibilidade de horário para mim?',
+
+    'Neurologista':
+      'Olá! Vim pelo site da Mazutti e gostaria de agendar uma consulta com o Neurologista. Tenho sentido sintomas neurológicos e preciso de avaliação especializada. Podem verificar a disponibilidade de horário?',
+
+    'Ortopedista / Traumatologista':
+      'Olá! Vim pelo site da Mazutti e gostaria de agendar uma consulta com o Ortopedista/Traumatologista. Estou com dores ou problemas musculoesqueléticos e preciso de avaliação. Podem verificar a disponibilidade de horário?',
+
+    'Ginecologista':
+      'Olá! Vim pelo site da Mazutti e gostaria de agendar uma consulta com a Ginecologista. Preciso de acompanhamento da saúde feminina. Podem verificar a disponibilidade de horário para mim?',
+
+    'Obstetra':
+      'Olá! Vim pelo site da Mazutti e gostaria de agendar uma consulta com o Obstetra para acompanhamento do pré-natal. Podem verificar a disponibilidade de horário para mim?',
+
+    'Pediatra':
+      'Olá! Vim pelo site da Mazutti e gostaria de agendar uma consulta com o Pediatra para meu filho(a). Podem verificar a disponibilidade de horário?',
+
+    'Oftalmologista':
+      'Olá! Vim pelo site da Mazutti e gostaria de agendar uma consulta com o Oftalmologista. Estou com problemas de visão e preciso de avaliação. Podem verificar a disponibilidade de horário?',
+
+    'Endocrinologista':
+      'Olá! Vim pelo site da Mazutti e gostaria de agendar uma consulta com o Endocrinologista. Preciso de acompanhamento hormonal/metabólico. Podem verificar a disponibilidade de horário?',
+
+    'Gastroenterologista':
+      'Olá! Vim pelo site da Mazutti e gostaria de agendar uma consulta com o Gastroenterologista. Estou com problemas digestivos e preciso de avaliação. Podem verificar a disponibilidade de horário?',
+
+    'Otorrinolaringologista':
+      'Olá! Vim pelo site da Mazutti e gostaria de agendar uma consulta com o Otorrinolaringologista. Estou com problemas de ouvido, nariz ou garganta. Podem verificar a disponibilidade de horário?',
+
+    'Dermatologista':
+      'Olá! Vim pelo site da Mazutti e gostaria de agendar uma consulta com o Dermatologista. Tenho uma questão de pele que precisa de avaliação especializada. Podem verificar a disponibilidade de horário?',
+
+    'Angiologista':
+      'Olá! Vim pelo site da Mazutti e gostaria de agendar uma consulta com o Angiologista. Preciso de avaliação da minha circulação. Podem verificar a disponibilidade de horário?',
+
+    'Urologista':
+      'Olá! Vim pelo site da Mazutti e gostaria de agendar uma consulta com o Urologista. Preciso de avaliação do sistema urinário. Podem verificar a disponibilidade de horário?',
+
+    'Geriatra':
+      'Olá! Vim pelo site da Mazutti e gostaria de agendar uma consulta com o Geriatra para um paciente acima de 60 anos. Podem verificar a disponibilidade de horário?',
+
+    'Psicólogo':
+      'Olá! Vim pelo site da Mazutti e gostaria de agendar uma consulta com o Psicólogo. Estou buscando apoio emocional e psicológico. Podem verificar a disponibilidade de horário?',
+
+    'Psiquiatra':
+      'Olá! Vim pelo site da Mazutti e gostaria de agendar uma consulta com o Psiquiatra. Preciso de avaliação e acompanhamento especializado em saúde mental. Podem verificar a disponibilidade de horário?',
+
+    'Nutricionista':
+      'Olá! Vim pelo site da Mazutti e gostaria de agendar uma consulta com o Nutricionista. Preciso de orientação alimentar e nutricional personalizada. Podem verificar a disponibilidade de horário?',
+
+    'Reumatologista':
+      'Olá! Vim pelo site da Mazutti e gostaria de agendar uma consulta com o Reumatologista. Estou com dores articulares ou suspeita de doença reumática. Podem verificar a disponibilidade de horário?',
+
+    'Médico da Família / Clínico Geral':
+      'Olá! Vim pelo site da Mazutti e gostaria de agendar uma consulta com o Clínico Geral. Preciso de avaliação geral e orientação sobre minha saúde. Podem verificar a disponibilidade de horário?',
+
+    'Medicina do Esporte':
+      'Olá! Vim pelo site da Mazutti e gostaria de agendar uma consulta com o especialista em Medicina do Esporte. Pratico atividade física e quero avaliação e acompanhamento. Podem verificar a disponibilidade?',
+
+    'Médico da Família':
+      'Olá! Vim pelo site da Mazutti e gostaria de agendar uma consulta com o Médico de Família. Busco acompanhamento integral da minha saúde e da minha família. Podem verificar a disponibilidade de horário?'
+  };
+
+  // SVG do WhatsApp reutilizável
+  const WA_SVG = `<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+    <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
+  </svg>`;
+
+  document.querySelectorAll('.specialty-card').forEach(card => {
+    const specialtyName = card.querySelector('h3')?.textContent?.trim() || '';
+    const message = SPECIALTY_MESSAGES[specialtyName]
+      || `Olá! Vim pelo site da Mazutti e gostaria de agendar uma consulta com ${specialtyName}. Podem verificar a disponibilidade de horário?`;
+
+    const link = document.createElement('a');
+    link.href      = `https://wa.me/${WA_NUMBER}?text=${encodeURIComponent(message)}`;
+    link.target    = '_blank';
+    link.rel       = 'noopener';
+    link.className = 'specialty-wa';
+    link.setAttribute('data-ga-section', 'especialidades_card');
+    link.setAttribute('aria-label', `Agendar consulta de ${specialtyName} pelo WhatsApp`);
+    link.innerHTML = `${WA_SVG} Agendar esta consulta`;
+
+    // GA4 — registra a especialidade clicada individualmente
+    link.addEventListener('click', (e) => {
+      e.stopPropagation();
+      gaEvent('whatsapp_click', {
+        event_category: 'conversao',
+        section:        'especialidades_card',
+        cta_label:      specialtyName
+      });
+      showToast('Redirecionando para o WhatsApp... 📱');
+    });
+
+    card.appendChild(link);
+  });
+
+  console.log('✅ Mazutti Clínica Médica — scripts + GA4 + WA especialidades carregados com sucesso!');
 });
