@@ -678,6 +678,8 @@ ul { list-style: none; }
   box-shadow: var(--shadow);
   transition: var(--transition);
   cursor: default;
+  display: flex;
+  flex-direction: column;
 }
 .specialty-card:hover {
   border-color: var(--blue);
@@ -701,6 +703,38 @@ ul { list-style: none; }
   font-size: .86rem;
   color: var(--text);
   line-height: 1.6;
+  flex: 1;
+}
+
+/* ============================================================
+   WHATSAPP CTA — CARDS DE ESPECIALIDADE
+   ============================================================ */
+.specialty-wa {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 16px;
+  padding-top: 13px;
+  border-top: 1px solid rgba(14,165,233,.1);
+  width: 100%;
+  color: var(--muted);
+  font-family: var(--font);
+  font-size: .8rem;
+  font-weight: 600;
+  letter-spacing: .01em;
+  text-decoration: none;
+  transition: color var(--transition);
+  cursor: pointer;
+}
+.specialty-wa svg {
+  flex-shrink: 0;
+  transition: transform var(--transition);
+}
+.specialty-card:hover .specialty-wa {
+  color: #16a34a;
+}
+.specialty-card:hover .specialty-wa svg {
+  transform: scale(1.2);
 }
 
 /* ============================================================
@@ -1170,6 +1204,10 @@ ul { list-style: none; }
   .solution-highlight-inner { flex-direction: column; text-align: center; }
 
   .specialties-toggle-btn { font-size: .88rem; padding: 12px 20px; }
+
+  /* WA nos cards: sempre visível no mobile (sem hover) */
+  .specialty-wa { color: #16a34a; }
+  .specialty-wa svg { color: #16a34a; }
 }
 
 @media (max-width: 480px) {
