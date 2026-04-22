@@ -68,8 +68,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
   /* ============================================================
      GA4 — CLIQUES NO WHATSAPP
-     Cada link no HTML tem data-ga-section indicando o contexto
-     exato de conversão (hero, faq, cta_final etc.)
   ============================================================ */
   document.querySelectorAll('a[href*="wa.me"]').forEach(link => {
     link.addEventListener('click', () => {
@@ -84,7 +82,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
   /* ============================================================
      GA4 — CLIQUES EM LINKS EXTERNOS MARCADOS
-     (Google Maps, Instagram, Google Reviews — via data-ga-action)
   ============================================================ */
   document.querySelectorAll('a[data-ga-action]').forEach(link => {
     link.addEventListener('click', () => {
@@ -252,12 +249,12 @@ document.addEventListener('DOMContentLoaded', () => {
   /* ---------- 7. WHATSAPP FLOAT — visibilidade ---------- */
   const waFloat = document.querySelector('.whatsapp-float');
   if (waFloat) {
-    waFloat.style.transition   = 'opacity .4s ease, transform .3s ease, box-shadow .3s ease';
-    waFloat.style.opacity      = '0';
+    waFloat.style.transition    = 'opacity .4s ease, transform .3s ease, box-shadow .3s ease';
+    waFloat.style.opacity       = '0';
     waFloat.style.pointerEvents = 'none';
     const toggleWa = () => {
       const show = window.scrollY > 300;
-      waFloat.style.opacity      = show ? '1' : '0';
+      waFloat.style.opacity       = show ? '1' : '0';
       waFloat.style.pointerEvents = show ? 'auto' : 'none';
     };
     window.addEventListener('scroll', toggleWa, { passive: true });
@@ -276,8 +273,8 @@ document.addEventListener('DOMContentLoaded', () => {
   applyStagger('.testimonial-card', 100);
 
   /* ---------- 9. ACTIVE LINK NO SCROLL ---------- */
-  const navLinks    = document.querySelectorAll('.nav a[href^="#"]');
-  const activeObs   = new IntersectionObserver((entries) => {
+  const navLinks  = document.querySelectorAll('.nav a[href^="#"]');
+  const activeObs = new IntersectionObserver((entries) => {
     entries.forEach(entry => {
       if (entry.isIntersecting) {
         navLinks.forEach(link => {
@@ -372,7 +369,7 @@ document.addEventListener('DOMContentLoaded', () => {
           Ver menos especialidades
         `;
         specialtiesExtra.querySelectorAll('.specialty-card').forEach((el, i) => {
-          el.style.opacity = '0';
+          el.style.opacity   = '0';
           el.style.transform = 'translateY(24px)';
           setTimeout(() => {
             el.style.transition = 'opacity .4s ease, transform .4s ease';
@@ -396,18 +393,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
   /* ============================================================
      14. WHATSAPP — BOTÃO INDIVIDUAL POR ESPECIALIDADE
-     Mensagem personalizada para cada especialidade.
-     Injetado via JS para não poluir o HTML.
   ============================================================ */
   const WA_NUMBER = '5531995825395';
 
-  /* ============================================================
-     IMAGENS DE FUNDO DOS CARDS DE ESPECIALIDADE
-     — Coloque o nome do arquivo correspondente a cada especialidade.
-     — Deixe null para manter o card branco sem imagem.
-     — Recomendado: JPG, ~600×400px, máximo 200kb por imagem.
-     — Os arquivos devem estar na mesma pasta do index.html.
-  ============================================================ */
   const SPECIALTY_IMAGES = {
     'Cardiologista':                     'cardio.jpg',
     'Neurologista':                      'neuro.jpg',
@@ -428,11 +416,10 @@ document.addEventListener('DOMContentLoaded', () => {
     'Nutricionista':                     'nutri.jpg',
     'Reumatologista':                    'reuma.jpg',
     'Médico da Família / Clínico Geral': 'clinico-geral.jpg',
-    'Medicina do Esporte':               'medicin a-esporte.jpg',
+    'Medicina do Esporte':               'medicina-esporte.jpg',
     'Médico da Família':                 'medico-familia.jpg',
   };
 
-  // Mapa: nome exato do h3 → mensagem personalizada
   const SPECIALTY_MESSAGES = {
     'Cardiologista':
       'Olá! Vim pelo site da Mazutti e gostaria de agendar uma consulta com o Cardiologista. Estou com dúvidas sobre minha saúde cardiovascular e preciso de avaliação. Podem verificar a disponibilidade de horário para mim?',
@@ -511,6 +498,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (imgFile) {
       card.style.setProperty('--card-bg', `url('${imgFile}')`);
     }
+
     const message = SPECIALTY_MESSAGES[specialtyName]
       || `Olá! Vim pelo site da Mazutti e gostaria de agendar uma consulta com ${specialtyName}. Podem verificar a disponibilidade de horário?`;
 
@@ -523,7 +511,6 @@ document.addEventListener('DOMContentLoaded', () => {
     link.setAttribute('aria-label', `Agendar consulta de ${specialtyName} pelo WhatsApp`);
     link.innerHTML = `${WA_SVG} Agendar esta consulta`;
 
-    // GA4 — registra a especialidade clicada individualmente
     link.addEventListener('click', (e) => {
       e.stopPropagation();
       gaEvent('whatsapp_click', {
@@ -537,5 +524,21 @@ document.addEventListener('DOMContentLoaded', () => {
     card.appendChild(link);
   });
 
-  console.log('✅ Mazutti Clínica Médica — scripts + GA4 + WA especialidades carregados com sucesso!');
+  /* ============================================================
+     15. LUCIDE ICONS — inicializa todos os <i data-lucide="...">
+     Chamado por último para garantir que o DOM está 100% montado,
+     incluindo os botões de WA injetados dinamicamente acima.
+     stroke-width: 1.5 — traço fino, estilo SaaS de saúde.
+  ============================================================ */
+  if (typeof lucide !== 'undefined') {
+    lucide.createIcons({
+      attrs: {
+        'stroke-width': '1.5',
+        'width':        '22',
+        'height':       '22'
+      }
+    });
+  }
+
+  console.log('✅ Mazutti Clínica Médica — scripts + GA4 + Lucide Icons + WA especialidades carregados com sucesso!');
 });
